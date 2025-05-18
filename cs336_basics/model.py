@@ -4,6 +4,12 @@ import math
 import einops
 
 
+def softmax(x: torch.Tensor, dim: int) -> torch.Tensor:
+    x_max = x.max(dim=dim, keepdim=True).values
+    x_exp = torch.exp(x - x_max)
+    return x_exp / x_exp.sum(dim=dim, keepdim=True)
+
+
 class Linear(nn.Module):
     def __init__(
         self, in_features: int, out_features: int, device: torch.device | None = None, dtype: torch.dtype | None = None
@@ -81,8 +87,9 @@ class SwiGLU(nn.Module):
 
 
 class SiLU(nn.Module):
-    def __init__(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
+    def __init__(self):
         super().__init__()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x * torch.sigmoid(x)
+
