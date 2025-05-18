@@ -10,6 +10,17 @@ def softmax(x: torch.Tensor, dim: int) -> torch.Tensor:
     return x_exp / x_exp.sum(dim=dim, keepdim=True)
 
 
+def scaled_dot_product_attention(
+    Q: torch.Tensor, K: torch.Tensor, V: torch.Tensor, mask: torch.Tensor | None = None
+) -> torch.Tensor:
+    d_k = Q.shape[-1]
+    q_k = einops.einsum(Q, K, "... seq_q d_k, ... seq_k d_k -> ... seq_q seq_k")
+    scaled_q_k = q_k / math.sqrt(d_k)
+    scaled_q_k = torch.where(mask, scaled_q_k, float("-inf"))
+    attn = einops.einsum(softmax(scaled_q_k, dim=-1), V, "... seq_q seq_k, ... seq_k d_v -> ... seq_q d_v")
+    return attn
+
+
 class Linear(nn.Module):
     def __init__(
         self, in_features: int, out_features: int, device: torch.device | None = None, dtype: torch.dtype | None = None
@@ -92,4 +103,3 @@ class SiLU(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x * torch.sigmoid(x)
-
