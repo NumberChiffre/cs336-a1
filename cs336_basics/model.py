@@ -10,9 +10,7 @@ def softmax(x: torch.Tensor, dim: int) -> torch.Tensor:
     return x_exp / x_exp.sum(dim=dim, keepdim=True)
 
 
-def scaled_dot_product_attention(
-    Q: torch.Tensor, K: torch.Tensor, V: torch.Tensor, mask: torch.Tensor | None = None
-) -> torch.Tensor:
+def scaled_dot_product_attention(Q: torch.Tensor, K: torch.Tensor, V: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
     d_k = Q.shape[-1]
     q_k = einops.einsum(Q, K, "... seq_q d_k, ... seq_k d_k -> ... seq_q seq_k")
     scaled_q_k = q_k / math.sqrt(d_k)
