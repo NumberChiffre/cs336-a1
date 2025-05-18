@@ -20,6 +20,26 @@ class Linear(nn.Module):
         return einops.einsum(x, self.w, "... d_in, d_out d_in -> ... d_out")
 
 
+class Embedding(nn.Module):
+    def __init__(
+        self,
+        num_embeddings: int,
+        embedding_dim: int,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
+    ):
+        super().__init__()
+        weight = torch.empty((num_embeddings, embedding_dim), device=device, dtype=dtype)
+        mean = 0
+        std = 1
+        lb, ub = -3, 3
+        nn.init.trunc_normal_(weight, mean=mean, std=std, a=lb, b=ub)
+        self.w = nn.Parameter(weight)
+
+    def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
+        return self.w[token_ids]
+
+
 class RMSNorm(nn.Module):
     def __init__(
         self, d_model: int, eps: float = 1e-5, device: torch.device | None = None, dtype: torch.dtype | None = None
@@ -28,10 +48,10 @@ class RMSNorm(nn.Module):
         self.d_model = d_model
         self.eps = eps
         self.g = nn.Parameter(torch.ones(d_model, device=device, dtype=dtype))
-        
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         in_dtype = x.dtype
         x = x.to(torch.float32)
-        rms = torch.sqrt(einops.reduce(x ** 2, "... d_model -> ... 1", "mean") + self.eps)
+        rms = torch.sqrt(einops.reduce(x**2, "... d_model -> ... 1", "mean") + self.eps)
         x = x * self.g / rms
         return x.to(in_dtype)
