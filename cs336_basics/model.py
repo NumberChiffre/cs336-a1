@@ -58,7 +58,13 @@ class RMSNorm(nn.Module):
 
 
 class SwiGLU(nn.Module):
-    def __init__(self, d_model: int, d_ff: int | None = None, device: torch.device | None = None, dtype: torch.dtype | None = None):
+    def __init__(
+        self,
+        d_model: int,
+        d_ff: int | None = None,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
+    ):
         super().__init__()
         if d_ff is None:
             d_ff = (8 * d_model) // 3
@@ -72,3 +78,11 @@ class SwiGLU(nn.Module):
         silu = w1_x * torch.sigmoid(w1_x)
         swiglu = self.w2(silu * self.w3(x))
         return swiglu
+
+
+class SiLU(nn.Module):
+    def __init__(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
+        super().__init__()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x * torch.sigmoid(x)
