@@ -38,13 +38,29 @@ addopts = "-s"
 
 [tool.ruff]
 line-length = 120
+# Enable preview to use E302 and E305
+preview = true
 
 [tool.ruff.lint.extend-per-file-ignores]
 # Also ignore `E402` in all `__init__.py` files.
 "__init__.py" = ["E402", "F401", "F403", "E501"]
 
 [tool.ruff.lint]
+# Only enable spacing checks between class/func definitions
 extend-select = ["UP"]
+select = ["E302", "E305", "E501"]
 ignore = [
     "F722"
 ]
+
+[tool.black]
+line-length = 120
+target-version = ["py311"]
+include = '\.pyi?$'
+extend-exclude = '''
+# Directories to exclude
+/(
+    \.git
+  | \.venv
+)/
+'''

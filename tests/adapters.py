@@ -10,6 +10,9 @@ import torch
 from torch import Tensor
 
 
+from cs336_basics.train_bpe import train_bpe
+from cs336_basics.model import Linear, RMSNorm
+
 
 def run_linear(
     d_in: int,
@@ -25,12 +28,14 @@ def run_linear(
         out_dim (int): The size of the output dimension
         weights (Float[Tensor, "d_out d_in"]): The linear weights to use
         in_features (Float[Tensor, "... d_in"]): The output tensor to apply the function to
-    
+
     Returns:
         Float[Tensor, "... d_out"]: The transformed output of your linear module.
     """
 
-    raise NotImplementedError
+    linear = Linear(d_in, d_out)
+    linear.w.data = weights
+    return linear(in_features)
 
 
 def run_embedding(
@@ -47,7 +52,7 @@ def run_embedding(
         d_model (int): The size of the embedding dimension
         weights (Float[Tensor, "vocab_size d_model"]): The embedding vectors to fetch from
         token_ids (Int[Tensor, "..."]): The set of token ids to fetch from the Embedding layer
-    
+
     Returns:
         Float[Tensor, "... d_model"]: Batch of embeddings returned by your Embedding layer.
     """
@@ -136,8 +141,8 @@ def run_multihead_self_attention(
         in_features (Float[Tensor, "... sequence_length d_in"]): Tensor to run your implementation on.
 
     Returns:
-        Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
-        implementation with the given QKV projection weights and input features.
+        Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized,
+        batched multi-headed attention implementation with the given QKV projection weights and input features.
     """
     raise NotImplementedError
 
@@ -176,8 +181,8 @@ def run_multihead_self_attention_with_rope(
         token_positions (Int[Tensor, " ... sequence_length"] | None): Optional tensor with the positions of the tokens
 
     Returns:
-        Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
-        implementation with the given QKV projection weights and input features.
+        Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched
+        multi-headed attention implementation with the given QKV projection weights and input features.
     """
     raise NotImplementedError
 
@@ -197,7 +202,8 @@ def run_rope(
         theta (float): RoPE parameter.
         max_seq_len (int): Maximum sequence length to pre-cache if your implementation does that.
         in_query_or_key (Float[Tensor, "... sequence_length d_k"]): Input tensor to run RoPE on.
-        token_positions (Int[Tensor, "... sequence_length"]): Tensor of shape (batch_size, sequence_length) with the token positions
+        token_positions (Int[Tensor, "... sequence_length"]): Tensor of shape (batch_size, sequence_length)
+        with the token positions
     Returns:
         Float[Tensor, " ... sequence_length d_k"]: Tensor with RoPEd input.
     """
@@ -302,7 +308,7 @@ def run_transformer_lm(
             evenly divisible by `num_heads`.
         d_ff (int): Dimensionality of the feed-forward inner layer (section 3.3).
         rope_theta (float): The RoPE $\Theta$ parameter.
-        weights (dict[str, Tensor]): 
+        weights (dict[str, Tensor]):
             State dict of our reference implementation. {num_layers} refers to an
             integer between `0` and `num_layers - 1` (the layer index).
             The keys of this dictionary are:
@@ -349,8 +355,8 @@ def run_transformer_lm(
             - `lm_head.weight`
                 Weights of the language model output embedding.
                 Shape is (vocab_size, d_model).
-        in_indices (Int[Tensor, "batch_size sequence_length"]) Tensor with input indices to run the language model on. Shape is (batch_size, sequence_length), where
-            `sequence_length` is at most `context_length`.
+        in_indices (Int[Tensor, "batch_size sequence_length"]) Tensor with input indices to run the language model
+            on. Shape is (batch_size, sequence_length), where `sequence_length` is at most `context_length`.
 
     Returns:
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
@@ -379,7 +385,10 @@ def run_rmsnorm(
         Float[Tensor,"... d_model"]: Tensor of with the same shape as `in_features` with the output of running
         RMSNorm of the `in_features`.
     """
-    raise NotImplementedError
+    
+    rmsnorm = RMSNorm(d_model=d_model, eps=eps)
+    rmsnorm.g.data = weights
+    return rmsnorm(in_features)
 
 
 def run_silu(in_features: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:
@@ -435,7 +444,9 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
     raise NotImplementedError
 
 
-def run_cross_entropy(inputs: Float[Tensor, " batch_size vocab_size"], targets: Int[Tensor, " batch_size"]) -> Float[Tensor, ""]:
+def run_cross_entropy(
+    inputs: Float[Tensor, " batch_size vocab_size"], targets: Int[Tensor, " batch_size"]
+) -> Float[Tensor, ""]:
     """Given a tensor of inputs and targets, compute the average cross-entropy
     loss across examples.
 
@@ -512,7 +523,8 @@ def run_save_checkpoint(
         optimizer (torch.optim.Optimizer): Serialize the state of this optimizer.
         iteration (int): Serialize this value, which represents the number of training iterations
             we've completed.
-        out (str | os.PathLike | BinaryIO | IO[bytes]): Path or file-like object to serialize the model, optimizer, and iteration to.
+        out (str | os.PathLike | BinaryIO | IO[bytes]): Path or file-like object to serialize the
+            model, optimizer, and iteration to.
     """
     raise NotImplementedError
 
@@ -588,4 +600,4 @@ def run_train_bpe(
                 representing that <token1> was merged with <token2>.
                 Merges are ordered by order of creation.
     """
-    raise NotImplementedError
+    return train_bpe(input_path, vocab_size, special_tokens)
