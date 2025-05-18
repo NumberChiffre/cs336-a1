@@ -34,7 +34,7 @@ def run_linear(
     """
 
     linear = model.Linear(d_in, d_out)
-    linear.w.data = weights
+    linear.weight.data = weights
     return linear(in_features)
 
 
@@ -58,7 +58,7 @@ def run_embedding(
     """
 
     embedding = model.Embedding(vocab_size, d_model)
-    embedding.w.data = weights
+    embedding.weight.data = weights
     return embedding(token_ids)
 
 
@@ -91,7 +91,11 @@ def run_swiglu(
     # swiglu.w1.weight.data = w1_weight
     # swiglu.w2.weight.data = w2_weight
     # swiglu.w3.weight.data = w3_weight
-    raise NotImplementedError
+    swiglu = model.SwiGLU(d_model, d_ff)
+    swiglu.w1.weight.data = w1_weight
+    swiglu.w2.weight.data = w2_weight
+    swiglu.w3.weight.data = w3_weight
+    return swiglu(in_features)
 
 
 def run_scaled_dot_product_attention(
@@ -389,7 +393,7 @@ def run_rmsnorm(
     """
 
     rmsnorm = model.RMSNorm(d_model=d_model, eps=eps)
-    rmsnorm.g.data = weights
+    rmsnorm.weight.data = weights
     return rmsnorm(in_features)
 
 
@@ -419,7 +423,7 @@ def run_get_batch(
         dataset (np.array): 1D numpy array of integer token IDs in the dataset.
         batch_size (int): Desired batch size to sample.
         context_length (int): Desired context length of each sampled example.
-        device (str): PyTorch device string (e.g., 'cpu' or 'cuda:0') indicating the device
+        device (str): PyTorch device string (e.weight., 'cpu' or 'cuda:0') indicating the device
             to place the sampled input sequences and labels on.
 
     Returns:

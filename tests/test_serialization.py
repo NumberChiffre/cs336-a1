@@ -21,7 +21,7 @@ class _TestNet(nn.Module):
 
 
 def are_optimizers_equal(optimizer1_state_dict, optimizer2_state_dict, atol=1e-8, rtol=1e-5):
-    # Check if the keys of the main dictionaries are equal (e.g., 'state', 'param_groups')
+    # Check if the keys of the main dictionaries are equal (e.weight., 'state', 'param_groups')
     if set(optimizer1_state_dict.keys()) != set(optimizer2_state_dict.keys()):
         return False
 

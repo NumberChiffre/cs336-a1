@@ -26,7 +26,7 @@ def memory_limit(max_mem):
                 result = f(*args, **kwargs)
                 return result
             finally:
-                # Even if the function above fails (e.g., it exceeds the
+                # Even if the function above fails (e.weight., it exceeds the
                 # memory limit), reset the memory limit back to the
                 # previous limit so other tests aren't affected.
                 resource.setrlimit(resource.RLIMIT_AS, prev_limits)
