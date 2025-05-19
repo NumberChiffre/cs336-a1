@@ -152,7 +152,7 @@ class CausalMultiheadSelfAttention(nn.Module):
         self.num_heads = num_heads
         self.device = device
         self.dtype = dtype
-        self.qkv_proj = Linear(in_features=d_model, out_features=3 * d_model, device=device, dtype=dtype)
+        self.qkv_proj = Linear(in_features=d_model, out_features=d_model, device=device, dtype=dtype)
         self.o_proj = Linear(in_features=d_model, out_features=d_model, device=device, dtype=dtype)
 
     def forward(
@@ -178,3 +178,65 @@ class CausalMultiheadSelfAttention(nn.Module):
         attn = scaled_dot_product_attention(q, k, v, mask)
         attn = rearrange(attn, "batch h seq_len d_k -> batch seq_len (h d_k)")
         return self.o_proj(attn)
+
+
+class TransformerBlock(nn.Module):
+    def __init__(
+        self,
+        d_model: int,
+        num_heads: int,
+        d_ff: int,
+        theta: float,
+        max_seq_len: int,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
+    ):
+        super().__init__()
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.d_ff = d_ff
+        self.norm_attn = RMSNorm(d_model, device=device, dtype=dtype)
+        self.norm_ffn = RMSNorm(d_model, device=device, dtype=dtype)
+        self.rope = RotaryPositionalEmbedding(theta=theta, d_k=d_model // num_heads, max_seq_len=max_seq_len)
+        self.attn = CausalMultiheadSelfAttention(d_model, num_heads, device=device, dtype=dtype)
+        self.ffn = SwiGLU(d_model, d_ff, device=device, dtype=dtype)
+
+    def forward(self, x: torch.Tensor, token_positions: torch.Tensor | None = None) -> torch.Tensor:
+        # [batch, seq_len, d_model] -> [batch, seq_len, d_model]
+        x = x + self.attn(self.norm_attn(x), self.rope, token_positions)
+        # [batch, seq_len, d_model] -> [batch, seq_len, d_model]
+        x = x + self.ffn(self.norm_ffn(x))
+        return x
+
+
+class TransformerLM(nn.Module):
+    def __init__(
+        self,
+        vocab_size: int,
+        context_length: int,
+        d_model: int,
+        num_layers: int,
+        num_heads: int,
+        d_ff: int,
+        theta: float,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
+    ):
+        super().__init__()
+        self.token_embeddings = Embedding(num_embeddings=vocab_size, embedding_dim=d_model, device=device, dtype=dtype)
+        self.layers = nn.ModuleList(
+            [TransformerBlock(d_model, num_heads, d_ff, theta, context_length) for i in range(num_layers)]
+        )
+        self.ln_final = RMSNorm(d_model, device=device, dtype=dtype)
+        self.lm_head = Linear(in_features=d_model, out_features=vocab_size, device=device, dtype=dtype)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # [batch, seq_len] -> [batch, seq_len, d_model]
+        x = self.token_embeddings(x)
+        for layer in self.layers:
+            # [batch, seq_len, d_model] -> [batch, seq_len, d_model]
+            x = layer(x)
+        # [batch, seq_len, d_model]
+        x = self.ln_final(x)
+        # [batch, seq_len, d_model] -> [batch, seq_len, vocab_size]
+        return self.lm_head(x)
