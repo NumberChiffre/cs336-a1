@@ -12,7 +12,8 @@ def cross_entropy_loss(logits: torch.Tensor, targets: torch.Tensor) -> torch.Ten
 
 def gradient_clip(params: Iterable[torch.nn.Parameter], max_l2_norm: float, eps: float = 1e-6) -> None:
     grads = [p.grad for p in params if p.grad is not None]
-    l2_norm = torch.norm(torch.stack([torch.norm(g.detach(), p=2) for g in grads]), p=2)
+    squared_norms = [torch.sum(grad ** 2) for grad in grads]
+    l2_norm = torch.sqrt(sum(squared_norms) + eps)
     if l2_norm > max_l2_norm:
         scale = max_l2_norm / (l2_norm + eps)
         for grad in grads:
