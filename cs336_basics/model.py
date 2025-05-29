@@ -152,7 +152,7 @@ class CausalMultiheadSelfAttention(nn.Module):
         self.num_heads = num_heads
         self.device = device
         self.dtype = dtype
-        self.qkv_proj = Linear(in_features=d_model, out_features=d_model, device=device, dtype=dtype)
+        self.qkv_proj = Linear(in_features=d_model, out_features=3 * d_model, device=device, dtype=dtype)
         self.o_proj = Linear(in_features=d_model, out_features=d_model, device=device, dtype=dtype)
 
     def forward(
@@ -169,12 +169,13 @@ class CausalMultiheadSelfAttention(nn.Module):
         q = rearrange(q, "batch seq_len (h d_k) -> batch h seq_len d_k", h=self.num_heads)
         k = rearrange(k, "batch seq_len (h d_k) -> batch h seq_len d_k", h=self.num_heads)
         v = rearrange(v, "batch seq_len (h d_k) -> batch h seq_len d_k", h=self.num_heads)
+        # `x.device` because of mps:0 in play with torch compile
         if rope is not None:
             if token_positions is None:
                 token_positions = torch.arange(seq_len, device=x.device)
             q = rope(q, token_positions)
             k = rope(k, token_positions)
-        mask = torch.tril(torch.ones((seq_len, seq_len), device=self.device, dtype=torch.bool))
+        mask = torch.tril(torch.ones((seq_len, seq_len), device=x.device, dtype=torch.bool))
         attn = scaled_dot_product_attention(q, k, v, mask)
         attn = rearrange(attn, "batch h seq_len d_k -> batch seq_len (h d_k)")
         return self.o_proj(attn)
@@ -197,7 +198,7 @@ class TransformerBlock(nn.Module):
         self.d_ff = d_ff
         self.norm_attn = RMSNorm(d_model, device=device, dtype=dtype)
         self.norm_ffn = RMSNorm(d_model, device=device, dtype=dtype)
-        self.rope = RotaryPositionalEmbedding(theta=theta, d_k=d_model // num_heads, max_seq_len=max_seq_len)
+        self.rope = RotaryPositionalEmbedding(theta=theta, d_k=d_model // num_heads, max_seq_len=max_seq_len, device=device)
         self.attn = CausalMultiheadSelfAttention(d_model, num_heads, device=device, dtype=dtype)
         self.ffn = SwiGLU(d_model, d_ff, device=device, dtype=dtype)
 
@@ -209,7 +210,7 @@ class TransformerBlock(nn.Module):
         return x
 
 
-class TransformerLM(nn.Module):
+class Transformer(nn.Module):
     def __init__(
         self,
         vocab_size: int,
@@ -221,14 +222,17 @@ class TransformerLM(nn.Module):
         theta: float,
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
+        weight_sharing: bool = False,
     ):
         super().__init__()
         self.token_embeddings = Embedding(num_embeddings=vocab_size, embedding_dim=d_model, device=device, dtype=dtype)
         self.layers = nn.ModuleList(
-            [TransformerBlock(d_model, num_heads, d_ff, theta, context_length) for i in range(num_layers)]
+            [TransformerBlock(d_model, num_heads, d_ff, theta, context_length, device=device, dtype=dtype) for i in range(num_layers)]
         )
         self.ln_final = RMSNorm(d_model, device=device, dtype=dtype)
         self.lm_head = Linear(in_features=d_model, out_features=vocab_size, device=device, dtype=dtype)
+        if weight_sharing:
+            self.lm_head.weight = self.token_embeddings.weight
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # [batch, seq_len] -> [batch, seq_len, d_model]
